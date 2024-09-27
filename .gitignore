@@ -1,0 +1,125 @@
+# Python-related exclusions
+__pycache__/
+*.py[cod]
+*.egg
+*.egg-info/
+dist/
+build/
+*.so
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment and dependencies
+venv/
+env/
+ENV/
+.venv/
+env.bak/
+pip-log.txt
+pip-delete-this-directory.txt
+*.lock
+*.env
+
+# PyCharm project files and directories
+.idea/
+*.iml
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+*.ipynb
+*.bak
+
+# S3 Sync and temporary files
+*.tmp
+*.swp
+*.swo
+~$*
+*.bak
+*.log
+
+# AWS Lambda deployment packages and zip files
+*.zip
+lambda_packages/
+data_ingestion_package.zip
+data_processing_package.zip
+data_retrieval_package.zip
+
+# Terraform and CDK files
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+cdk.out/
+cdk.context.json
+cdk-assets.json
+
+# AWS CLI Configurations
+.aws/
+.aws-sam/
+.sam/
+.aws/
+.aws/
+*.sagemaker
+
+# Config files for development tools
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.code-workspace
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+*.out
+*.tmp
+*.swp
+*.swo
+*.bak
+
+# Ignore custom folders
+logs/
+notebooks/
+node_modules/
+temp/
+
+# Ignore test files and results
+test-results/
+coverage/
+*.test.*
+
+# Ignore sensitive information files
+.env
+*.pem
+*.key
+
+# Ignore compiled files
+*.dll
+*.pdb
+
+# Ignore data files and datasets
+data/
+datasets/
+*.csv
+*.tsv
+*.xlsx
+*.json
+
+# Ignore packaged SageMaker models
+*.model
+*.tar.gz
+*.pkl
+
+# Ignore cloud formation template outputs
+*.template
+*.yaml
+*.yml
+
+# Ignore backend specific deployments
+backend/__pycache__/
+backend/lambda_functions/__pycache__/
+backend/lambda_functions/utils/__pycache__/
+backend/infrastructure/__pycache__/

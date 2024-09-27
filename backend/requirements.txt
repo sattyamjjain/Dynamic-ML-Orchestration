@@ -1,0 +1,6 @@
+boto3
+black
+python-dotenv
+flask_restful
+jwt
+pyjwt[jwks_client]

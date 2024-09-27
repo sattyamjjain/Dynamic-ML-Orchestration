@@ -1,0 +1,273 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template for Dynamic-ML-Orchestration project
+
+Resources:
+  # S3 Bucket for storing datasets and model artifacts
+  S3Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: pyverseai
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # Cognito User Pool
+  CognitoUserPool:
+    Type: 'AWS::Cognito::UserPool'
+    Properties:
+      UserPoolName: 'DynamicMLUserPool'
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+      Schema:
+        - AttributeDataType: 'String'
+          Mutable: true
+          Name: 'email'
+          Required: true
+          StringAttributeConstraints:
+            MinLength: '5'
+            MaxLength: '50'
+      AutoVerifiedAttributes:
+        - 'email'
+
+  # Cognito User Pool Client
+  CognitoUserPoolClient:
+    Type: 'AWS::Cognito::UserPoolClient'
+    Properties:
+      ClientName: 'DynamicMLAppClient'
+      UserPoolId: !Ref CognitoUserPool
+      ExplicitAuthFlows:
+        - 'ALLOW_USER_PASSWORD_AUTH'
+        - 'ALLOW_REFRESH_TOKEN_AUTH'
+      GenerateSecret: false
+      AllowedOAuthFlows:
+        - 'code'
+        - 'implicit'
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - 'email'
+        - 'openid'
+        - 'aws.cognito.signin.user.admin'
+      CallbackURLs:
+        - 'https://localhost/callback'
+      LogoutURLs:
+        - 'https://localhost/logout'
+
+  # IAM Role for Lambda Execution
+  LambdaExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: 'DynamicMLLambdaExecutionRole'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service: 'lambda.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: 'LambdaS3DynamoDBPolicy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 's3:GetObject'
+                  - 's3:PutObject'
+                  - 's3:ListBucket'
+                Resource:
+                  - !Sub 'arn:aws:s3:::pyverseai'
+                  - !Sub 'arn:aws:s3:::pyverseai/*'
+              - Effect: 'Allow'
+                Action:
+                  - 'dynamodb:PutItem'
+                  - 'dynamodb:GetItem'
+                  - 'dynamodb:Query'
+                Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/DynamicMLTable'
+              - Effect: 'Allow'
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: 'arn:aws:logs:*:*:*'
+
+  # DynamoDB Table for storing metadata
+  DynamoDBTable:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: 'DynamicMLTable'
+      AttributeDefinitions:
+        - AttributeName: 'DocumentID'
+          AttributeType: 'S'
+      KeySchema:
+        - AttributeName: 'DocumentID'
+          KeyType: 'HASH'
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+  # Lambda Function for Data Ingestion
+  DataIngestionFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      FunctionName: 'DataIngestionFunction'
+      Handler: 'data_ingestion.lambda_handler'
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: 'pyverseai'
+        S3Key: 'dynamic-ml-orchestration/lambdas/data_ingestion_package.zip'
+      Runtime: 'python3.8'
+      Timeout: 300
+      MemorySize: 128
+      Environment:
+        Variables:
+          S3_BUCKET_NAME: 'pyverseai'
+          DYNAMODB_TABLE_NAME: 'DynamicMLTable'
+
+  # Lambda Function for Data Processing
+  DataProcessingFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      FunctionName: 'DataProcessingFunction'
+      Handler: 'data_processing.lambda_handler'
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: 'pyverseai'
+        S3Key: 'dynamic-ml-orchestration/lambdas/data_processing_package.zip'
+      Runtime: 'python3.8'
+      Timeout: 300
+      MemorySize: 128
+      Environment:
+        Variables:
+          SAGEMAKER_ENDPOINT_NAME: '<your-sagemaker-endpoint-name>'
+          S3_BUCKET_NAME: 'pyverseai'
+
+  # Lambda Function for Data Retrieval
+  DataRetrievalFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      FunctionName: 'DataRetrievalFunction'
+      Handler: 'data_retrieval.lambda_handler'
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: 'pyverseai'
+        S3Key: 'dynamic-ml-orchestration/lambdas/data_retrieval_package.zip'
+      Runtime: 'python3.8'
+      Timeout: 300
+      MemorySize: 128
+      Environment:
+        Variables:
+          S3_BUCKET_NAME: 'pyverseai'
+
+  # API Gateway for invoking Lambda functions
+  APIGateway:
+    Type: 'AWS::ApiGateway::RestApi'
+    Properties:
+      Name: 'DynamicMLAPI'
+      Description: 'API Gateway for Dynamic-ML-Orchestration project'
+
+  # API Gateway Resource - /ingest
+  IngestResource:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      ParentId: !GetAtt APIGateway.RootResourceId
+      PathPart: 'ingest'
+      RestApiId: !Ref APIGateway
+
+  # API Gateway Method - POST /ingest
+  IngestMethod:
+    Type: 'AWS::ApiGateway::Method'
+    Properties:
+      AuthorizationType: 'COGNITO_USER_POOLS'
+      AuthorizerId: !Ref CognitoUserPoolAuthorizer
+      HttpMethod: 'POST'
+      ResourceId: !Ref IngestResource
+      RestApiId: !Ref APIGateway
+      Integration:
+        IntegrationHttpMethod: 'POST'
+        Type: 'AWS_PROXY'
+        Uri: !Sub
+          - 'arn:aws:apigateway:${Region}:lambda:path/2015-03-31/functions/${DataIngestionFunction.Arn}/invocations'
+          - { Region: !Ref 'AWS::Region' }
+      MethodResponses:
+        - StatusCode: '200'
+
+  # API Gateway Resource - /process
+  ProcessResource:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      ParentId: !GetAtt APIGateway.RootResourceId
+      PathPart: 'process'
+      RestApiId: !Ref APIGateway
+
+  # API Gateway Method - POST /process
+  ProcessMethod:
+    Type: 'AWS::ApiGateway::Method'
+    Properties:
+      AuthorizationType: 'COGNITO_USER_POOLS'
+      AuthorizerId: !Ref CognitoUserPoolAuthorizer
+      HttpMethod: 'POST'
+      ResourceId: !Ref ProcessResource
+      RestApiId: !Ref APIGateway
+      Integration:
+        IntegrationHttpMethod: 'POST'
+        Type: 'AWS_PROXY'
+        Uri: !Sub
+          - 'arn:aws:apigateway:${Region}:lambda:path/2015-03-31/functions/${DataProcessingFunction.Arn}/invocations'
+          - { Region: !Ref 'AWS::Region' }
+      MethodResponses:
+        - StatusCode: '200'
+
+  # API Gateway Resource - /retrieve
+  RetrieveResource:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      ParentId: !GetAtt APIGateway.RootResourceId
+      PathPart: 'retrieve'
+      RestApiId: !Ref APIGateway
+
+  # API Gateway Method - GET /retrieve
+  RetrieveMethod:
+    Type: 'AWS::ApiGateway::Method'
+    Properties:
+      AuthorizationType: 'COGNITO_USER_POOLS'
+      AuthorizerId: !Ref CognitoUserPoolAuthorizer
+      HttpMethod: 'GET'
+      ResourceId: !Ref RetrieveResource
+      RestApiId: !Ref APIGateway
+      Integration:
+        IntegrationHttpMethod: 'GET'
+        Type: 'AWS_PROXY'
+        Uri: !Sub
+          - 'arn:aws:apigateway:${Region}:lambda:path/2015-03-31/functions/${DataRetrievalFunction.Arn}/invocations'
+          - { Region: !Ref 'AWS::Region' }
+      MethodResponses:
+        - StatusCode: '200'
+
+  # API Gateway Deployment
+  APIGatewayDeployment:
+    Type: 'AWS::ApiGateway::Deployment'
+    Properties:
+      RestApiId: !Ref APIGateway
+      StageName: 'test'
+    DependsOn:
+      - IngestMethod
+      - ProcessMethod
+      - RetrieveMethod
+
+  # Cognito User Pool Authorizer
+  CognitoUserPoolAuthorizer:
+    Type: 'AWS::ApiGateway::Authorizer'
+    Properties:
+      Name: 'CognitoAuthorizer'
+      Type: 'COGNITO_USER_POOLS'
+      IdentitySource: 'method.request.header.Authorization'
+      RestApiId: !Ref APIGateway
+      ProviderARNs:
+        - !GetAtt CognitoUserPool.Arn
