@@ -68,6 +68,10 @@ dynamic-ml-orchestration/
 └── README.md
 ```
 
+## System Design Document
+
+A detailed system design document outlining the architecture and flow of the project has been created. You can find the PDF document in the `/docs` folder.
+
 ## Prerequisites
 
 Before starting, ensure the following:
@@ -147,12 +151,12 @@ Before starting, ensure the following:
      ```
    - Deploy Lambda Functions:
      ```bash
-     bash deploy_lambda_functions.sh
+     bash infrastructure/deploy_lambda_functions.sh
      ```
 
    - Setup Cognito:
      ```bash
-     bash setup_cognito.sh
+     bash infrastructure/setup_cognito.sh
      ```
 
 ## API Endpoints
