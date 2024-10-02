@@ -263,7 +263,7 @@ export function ReviewSentimentAnalysisComponent() {
 
       <footer className="mt-12 text-center text-sm text-muted-foreground">
         <p>© 2024 Dynamic ML Orchestration. All rights reserved.</p>
-        <p>Developed by John Doe | SOC 2 Compliant | ISO 27001 Certified</p>
+        <p>Developed by Sattyam Jain | SOC 2 Compliant | ISO 27001 Certified</p>
       </footer>
     </div>
   )
