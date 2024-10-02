@@ -166,14 +166,6 @@ Before starting, ensure the following:
 - **Lambda Deployment Issues:** Ensure that the Lambda functions have the correct IAM roles with permissions to access S3, DynamoDB, and SageMaker.
 - **Cognito Authentication:** If you encounter issues with authentication, ensure that the Cognito User Pool and App Client are correctly configured and that the API Gateway is using the Cognito authorizer.
 
-## Testing
-
-- **Frontend**: Unit tests using `npm test`.
-- **Backend**: Unit tests using `unittest`.
-  ```bash
-  python3 -m unittest discover -s tests/backend_tests
-  ```
-
 ## Contributing
 
 We welcome contributions to improve the project. Please submit a pull request or open an issue for any changes or suggestions.
